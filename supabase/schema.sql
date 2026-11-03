@@ -2,7 +2,7 @@
 -- Applied to the Supabase project as migrations "create_words_table",
 -- "words_rls_and_owner", and "words_shared_bank".
 --
--- Auth: email magic links only. Accounts are created by the owner in the
+-- Auth: email + password only. Accounts are created by the owner in the
 -- Supabase dashboard; the app never calls signUp. Signed-in users share one
 -- bank: RLS blocks anonymous access, but every authenticated account can read
 -- and write every word.

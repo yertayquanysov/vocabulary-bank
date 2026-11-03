@@ -1,12 +1,13 @@
 # Vocabulary Bank
 
-A small React app for collecting words you're learning. Sign in with your
-email, add a word with a meaning and an optional example sentence, mark it as
-**New**, **Learning**, or **Mastered**, then filter and search your collection.
+A small React app for collecting words you're learning. Sign in with your email
+and password, add a word with a meaning and an optional example sentence, mark
+it as **New**, **Learning**, or **Mastered**, then filter and search your
+collection.
 
 ## Features
 
-- Email sign-in via magic link — no password, no sign-up form
+- Email + password sign-in — no sign-up form
 - One shared bank: every signed-in account sees and edits the same words
 - Anonymous visitors cannot read or write anything (enforced by RLS)
 - Add a word with a required meaning and optional example sentence
@@ -24,7 +25,8 @@ The app has two modes:
 
 - **Supabase** — used when `VITE_SUPABASE_URL` and
   `VITE_SUPABASE_PUBLISHABLE_KEY` (or `VITE_SUPABASE_ANON_KEY`) are set.
-  Users sign in with a magic link, and words live in the shared `words` table.
+  Users sign in with email and password, and words live in the shared `words`
+  table.
 - **Local** — used when those variables are missing. No sign-in is required and
   words are saved to `localStorage`.
 
@@ -61,14 +63,8 @@ VITE_SUPABASE_PUBLISHABLE_KEY
 Both values are public by design — the publishable key is already shipped to
 every browser — so they are stored as variables, not secrets.
 
-After deploying, add the Pages URL to **Authentication → URL Configuration →
-Redirect URLs** in Supabase:
-
-```
-https://yertayquanysov.github.io/vocabulary-bank/**
-```
-
-Without it, the magic link will not return to the deployed app.
+Password sign-in does not need a redirect URL, so no Pages URL configuration is
+required in Supabase.
 
 ## Supabase setup
 
@@ -88,30 +84,21 @@ The schema lives in [`supabase/schema.sql`](supabase/schema.sql). It defines the
    VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key
    ```
 
-3. In **Authentication → URL Configuration**, set the **Site URL** to your app
-   URL and add it to **Redirect URLs**, for example:
+3. In **Authentication → Sign In / Providers → Email**, turn off **Allow new
+   users to sign up**. The app does not call `signUp`, but this closes the public
+   signup endpoint too.
 
-   ```
-   http://localhost:5173/**
-   ```
+4. In **Authentication → Users → Add user**, create an account for each person
+   who should have access. Set a password and enable **Auto Confirm User** so
+   they can sign in immediately.
 
-   The magic link only returns to an allowed URL.
-
-4. In **Authentication → Sign In / Providers → Email**, turn off **Allow new
-   users to sign up**. The app already sends `shouldCreateUser: false`, but
-   this closes the public signup endpoint too.
-
-5. In **Authentication → Users → Add user**, create an account for each person
-   who should have access. Enable **Auto Confirm User** so they can sign in
-   immediately.
-
-6. Restart the dev server so Vite picks up the environment variables.
+5. Restart the dev server so Vite picks up the environment variables.
 
 ### Auth model
 
-- The app calls `signInWithOtp` with `shouldCreateUser: false`, so unknown
-  emails are rejected. There is no registration screen.
-- New accounts must be created by the owner in the Supabase dashboard.
+- The app calls `signInWithPassword`; there is no registration screen.
+- New accounts and password resets are handled by the owner in the Supabase
+  dashboard.
 - RLS is enabled with policies for the `authenticated` role only. The `anon`
   role has no policies, so it cannot read or write the table.
 - The bank is shared: any signed-in account can read, add, update, and delete

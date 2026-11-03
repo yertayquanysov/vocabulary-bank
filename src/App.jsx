@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   getSession,
   onAuthChange,
-  sendMagicLink,
+  signInWithPassword,
   signOut,
 } from './lib/auth'
 import {
@@ -105,11 +105,11 @@ function IconTrash() {
 function Login({
   email,
   setEmail,
+  password,
+  setPassword,
   error,
-  sending,
-  sentTo,
+  signingIn,
   onSubmit,
-  onReset,
 }) {
   return (
     <div className="app auth-page">
@@ -120,23 +120,11 @@ function Login({
         <p className="eyebrow">Personal word collection</p>
         <h1>Vocabulary Bank</h1>
         <p className="auth-lede">
-          Sign in with your email and we&rsquo;ll send you a magic link. No
-          password, no sign-up.
+          Sign in with the email and password for your account.
         </p>
 
-        {sentTo ? (
-          <div className="auth-sent" role="status">
-            <h2>Check your inbox</h2>
-            <p>
-              We sent a sign-in link to <strong>{sentTo}</strong>. Open it on
-              this device to continue.
-            </p>
-            <button type="button" className="link-button" onClick={onReset}>
-              Use a different email
-            </button>
-          </div>
-        ) : (
-          <form className="auth-form" onSubmit={onSubmit} noValidate>
+        <form className="auth-form" onSubmit={onSubmit} noValidate>
+          <div className="auth-field">
             <label htmlFor="email-input">Email</label>
             <input
               id="email-input"
@@ -148,15 +136,29 @@ function Login({
               autoFocus
               required
             />
-            <button
-              type="submit"
-              className="add-button auth-submit"
-              disabled={sending}
-            >
-              {sending ? 'Sending…' : 'Send magic link'}
-            </button>
-          </form>
-        )}
+          </div>
+
+          <div className="auth-field">
+            <label htmlFor="password-input">Password</label>
+            <input
+              id="password-input"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Your password"
+              autoComplete="current-password"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="add-button auth-submit"
+            disabled={signingIn}
+          >
+            {signingIn ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
 
         {error && (
           <p className="form-error" role="alert">
@@ -166,6 +168,7 @@ function Login({
 
         <p className="auth-note">
           Accounts are created by the owner. This app does not offer sign-up.
+          Ask the owner if you need your password reset.
         </p>
       </div>
     </div>
@@ -179,9 +182,9 @@ function App() {
   const [authLoading, setAuthLoading] = useState(storageMode === 'supabase')
   const userIdRef = useRef(null)
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
-  const [sendingLink, setSendingLink] = useState(false)
-  const [linkSentTo, setLinkSentTo] = useState('')
+  const [signingIn, setSigningIn] = useState(false)
   const [saving, setSaving] = useState(false)
   const [syncError, setSyncError] = useState('')
   const [filter, setFilter] = useState('all')
@@ -222,12 +225,9 @@ function App() {
       userIdRef.current = nextId
       setSession(nextSession)
       setAuthLoading(false)
-      if (nextSession) {
-        setLinkSentTo('')
-        setAuthError('')
-      } else {
-        setWords([])
-      }
+      setPassword('')
+      setAuthError('')
+      if (!nextSession) setWords([])
     })
 
     return () => {
@@ -389,28 +389,26 @@ function App() {
       return
     }
 
-    setSendingLink(true)
+    if (!password) {
+      setAuthError('Enter your password.')
+      return
+    }
+
+    setSigningIn(true)
     setAuthError('')
 
     try {
-      await sendMagicLink(trimmedEmail)
-      setLinkSentTo(trimmedEmail)
+      await signInWithPassword(trimmedEmail, password)
     } catch (loginError) {
-      const message = loginError.message || 'Could not send the sign-in link.'
+      const message = loginError.message || 'Could not sign you in.'
       setAuthError(
-        /signups? not allowed|user not found/i.test(message)
-          ? 'No account exists for that email. Ask the owner to add you first.'
+        /invalid login credentials/i.test(message)
+          ? 'Incorrect email or password.'
           : message,
       )
     } finally {
-      setSendingLink(false)
+      setSigningIn(false)
     }
-  }
-
-  function resetLogin() {
-    setLinkSentTo('')
-    setAuthError('')
-    setEmail('')
   }
 
   async function handleSignOut() {
@@ -439,11 +437,11 @@ function App() {
       <Login
         email={email}
         setEmail={setEmail}
+        password={password}
+        setPassword={setPassword}
         error={authError}
-        sending={sendingLink}
-        sentTo={linkSentTo}
+        signingIn={signingIn}
         onSubmit={handleLogin}
-        onReset={resetLogin}
       />
     )
   }
