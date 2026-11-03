@@ -39,6 +39,37 @@ npm run dev
 
 Open the printed local URL (usually `http://localhost:5173`).
 
+## Deploy to GitHub Pages
+
+The app is deployed at:
+
+**https://yertayquanysov.github.io/vocabulary-bank/**
+
+Pushing to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml),
+which builds the app and publishes `dist` to GitHub Pages. The Vite `base` path
+is derived from `GITHUB_REPOSITORY`, so project sites work without hardcoding
+the repository name.
+
+The build reads two repository variables (Settings → Secrets and variables →
+Actions → Variables):
+
+```
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+```
+
+Both values are public by design — the publishable key is already shipped to
+every browser — so they are stored as variables, not secrets.
+
+After deploying, add the Pages URL to **Authentication → URL Configuration →
+Redirect URLs** in Supabase:
+
+```
+https://yertayquanysov.github.io/vocabulary-bank/**
+```
+
+Without it, the magic link will not return to the deployed app.
+
 ## Supabase setup
 
 The schema lives in [`supabase/schema.sql`](supabase/schema.sql). It defines the
