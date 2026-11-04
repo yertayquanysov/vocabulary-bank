@@ -2,8 +2,8 @@
 
 A small React app for collecting words you're learning. Sign in with your email
 and password, add a word with a meaning and an optional example sentence, mark
-it as **New**, **Learning**, or **Mastered**, then filter and search your
-collection.
+it as **New**, **Learning**, or **Mastered**, then filter, search, and study your
+collection with flashcards.
 
 ## Features
 
@@ -13,11 +13,26 @@ collection.
 - Add a word with a required meaning and optional example sentence
 - Choose a status when adding: New, Learning, or Mastered
 - Change any word's status from its card
+- Flashcard study mode: reveal the meaning, then choose **Know** or
+  **Don't know**
 - Filter by status and search words, meanings, or examples
 - Mastery progress indicator
 - Duplicate-word guard and delete action
 - Responsive layout, keyboard-friendly controls
 - Supabase storage (with a local-only fallback)
+
+## Study mode
+
+Open **Study flashcards** from the progress card. Each session shuffles every
+word in the bank. Tap a card to reveal its meaning, then grade yourself:
+
+| Button | Status written to the database |
+| --- | --- |
+| **Know** | `mastered` |
+| **Don't know** | `learning` |
+
+The status change is saved immediately, so the word cards and mastery progress
+reflect it as soon as you return to the bank.
 
 ## Storage
 

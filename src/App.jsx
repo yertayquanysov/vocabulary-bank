@@ -28,6 +28,15 @@ const STATUS_LABELS = {
 
 const FILTERS = [{ id: 'all', label: 'All' }, ...STATUSES]
 
+function shuffle(items) {
+  const copy = [...items]
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(Math.random() * (index + 1))
+    ;[copy[index], copy[swap]] = [copy[swap], copy[index]]
+  }
+  return copy
+}
+
 function IconBook() {
   return (
     <svg
@@ -98,6 +107,25 @@ function IconTrash() {
     >
       <path d="M4 7h16M9 7V4h6v3M6.5 7l.8 12.1a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4L17.5 7" />
       <path d="M10 11v6M14 11v6" />
+    </svg>
+  )
+}
+
+function IconCards() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="7" width="13" height="14" rx="2" />
+      <path d="M8 7V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
     </svg>
   )
 }
@@ -194,6 +222,12 @@ function App() {
   const [example, setExample] = useState('')
   const [status, setStatus] = useState('new')
   const [error, setError] = useState('')
+  const [studyMode, setStudyMode] = useState(false)
+  const [studyQueue, setStudyQueue] = useState([])
+  const [studyIndex, setStudyIndex] = useState(0)
+  const [studyRevealed, setStudyRevealed] = useState(false)
+  const [studyResults, setStudyResults] = useState({ known: 0, unknown: 0 })
+  const [studySaving, setStudySaving] = useState(false)
 
   useEffect(() => {
     if (storageMode !== 'supabase') return undefined
@@ -288,6 +322,15 @@ function App() {
     })
   }, [words, filter, query])
 
+  const studyEntry =
+    words.find((entry) => entry.id === studyQueue[studyIndex]) ?? null
+  const studyTotal = studyQueue.length
+  const studyAnswered = Math.min(studyIndex, studyTotal)
+  const studyDone = studyMode && studyTotal > 0 && studyIndex >= studyTotal
+  const studyPercent = studyTotal
+    ? Math.round((studyAnswered / studyTotal) * 100)
+    : 0
+
   async function handleSubmit(event) {
     event.preventDefault()
     const trimmedWord = word.trim()
@@ -337,7 +380,8 @@ function App() {
 
   async function changeStatus(id, nextStatus) {
     const entry = words.find((item) => item.id === id)
-    if (!entry || entry.status === nextStatus) return
+    if (!entry) return false
+    if (entry.status === nextStatus) return true
 
     setWords((previous) =>
       previous.map((item) =>
@@ -348,6 +392,7 @@ function App() {
 
     try {
       await setWordStatus(id, nextStatus)
+      return true
     } catch (toggleError) {
       setWords((previous) =>
         previous.map((item) =>
@@ -355,6 +400,7 @@ function App() {
         ),
       )
       setSyncError(toggleError.message || 'Could not update that word.')
+      return false
     }
   }
 
@@ -373,6 +419,50 @@ function App() {
       }
       setSyncError(removeError.message || 'Could not delete that word.')
     }
+  }
+
+  function startStudy() {
+    if (words.length === 0) return
+
+    setStudyQueue(shuffle(words.map((entry) => entry.id)))
+    setStudyIndex(0)
+    setStudyRevealed(false)
+    setStudyResults({ known: 0, unknown: 0 })
+    setStudySaving(false)
+    setSyncError('')
+    setStudyMode(true)
+  }
+
+  function endStudy() {
+    setStudyMode(false)
+    setStudySaving(false)
+  }
+
+  async function answerStudy(knows) {
+    const id = studyQueue[studyIndex]
+    const entry = words.find((item) => item.id === id)
+
+    if (!entry) {
+      setStudyIndex((previous) => previous + 1)
+      setStudyRevealed(false)
+      return
+    }
+
+    if (studySaving) return
+
+    setStudySaving(true)
+    const saved = await changeStatus(id, knows ? 'mastered' : 'learning')
+
+    if (saved) {
+      setStudyResults((previous) => ({
+        known: previous.known + (knows ? 1 : 0),
+        unknown: previous.unknown + (knows ? 0 : 1),
+      }))
+      setStudyIndex((previous) => previous + 1)
+      setStudyRevealed(false)
+    }
+
+    setStudySaving(false)
   }
 
   function clearFilters() {
@@ -416,6 +506,7 @@ function App() {
     try {
       await signOut()
       setWords([])
+      setStudyMode(false)
     } catch (logoutError) {
       setSyncError(logoutError.message || 'Could not sign you out.')
     }
@@ -484,6 +575,15 @@ function App() {
                   counts.all === 1 ? 'word' : 'words'
                 } mastered`}
           </p>
+          <button
+            type="button"
+            className="study-start"
+            onClick={startStudy}
+            disabled={words.length === 0 || loading}
+          >
+            <IconCards />
+            Study flashcards
+          </button>
         </div>
       </header>
 
@@ -501,10 +601,152 @@ function App() {
         </div>
       )}
 
-      <section className="add-card" aria-labelledby="add-heading">
-        <h2 id="add-heading" className="section-title">
-          Add a word
-        </h2>
+      {studyMode ? (
+        <section className="study-panel" aria-labelledby="study-heading">
+          <div className="study-head">
+            <div>
+              <p className="eyebrow">Flashcards</p>
+              <h2 id="study-heading" className="section-title study-title">
+                Study your words
+              </h2>
+            </div>
+            <button type="button" className="clear-button" onClick={endStudy}>
+              Back to bank
+            </button>
+          </div>
+
+          {studyDone ? (
+            <div className="study-summary">
+              <span className="study-summary-mark">
+                <IconCards />
+              </span>
+              <h3>Session complete</h3>
+              <p>
+                You knew {studyResults.known} of {studyTotal}{' '}
+                {studyTotal === 1 ? 'word' : 'words'}.
+                {studyResults.unknown > 0
+                  ? ` ${studyResults.unknown} marked for review.`
+                  : ''}
+              </p>
+              <div className="study-summary-actions">
+                <button
+                  type="button"
+                  className="study-button study-button-known"
+                  onClick={startStudy}
+                >
+                  Study again
+                </button>
+              </div>
+            </div>
+          ) : studyEntry ? (
+            <>
+              <div className="study-progress">
+                <div className="progress-top">
+                  <span className="progress-label">
+                    Card {studyAnswered + 1} of {studyTotal}
+                  </span>
+                  <span className="study-counts">
+                    {studyResults.known} known · {studyResults.unknown} to review
+                  </span>
+                </div>
+                <div
+                  className="progress-track"
+                  role="progressbar"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  aria-valuenow={studyPercent}
+                  aria-label="Study progress"
+                >
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${studyPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              <div
+                className={`flashcard ${studyRevealed ? 'is-revealed' : ''}`}
+                role={studyRevealed ? undefined : 'button'}
+                tabIndex={studyRevealed ? undefined : 0}
+                onClick={
+                  studyRevealed ? undefined : () => setStudyRevealed(true)
+                }
+                onKeyDown={(event) => {
+                  if (studyRevealed) return
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    setStudyRevealed(true)
+                  }
+                }}
+                aria-label={
+                  studyRevealed
+                    ? undefined
+                    : `Reveal the meaning of ${studyEntry.word}`
+                }
+              >
+                <span className={`badge badge-${studyEntry.status}`}>
+                  <span className={`dot dot-${studyEntry.status}`} />
+                  {STATUS_LABELS[studyEntry.status]}
+                </span>
+
+                <h3 className="flashcard-word">{studyEntry.word}</h3>
+
+                {studyRevealed ? (
+                  <div className="flashcard-back">
+                    <p className="flashcard-meaning">{studyEntry.meaning}</p>
+                    {studyEntry.example && (
+                      <p className="example">
+                        <span className="example-label">Example</span>
+                        {studyEntry.example}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="flashcard-hint">
+                    Tap the card to reveal the meaning.
+                  </p>
+                )}
+              </div>
+
+              <div className="study-actions">
+                <button
+                  type="button"
+                  className="study-button study-button-unknown"
+                  onClick={() => answerStudy(false)}
+                  disabled={studySaving}
+                >
+                  Don&rsquo;t know
+                </button>
+                <button
+                  type="button"
+                  className="study-button study-button-known"
+                  onClick={() => answerStudy(true)}
+                  disabled={studySaving}
+                >
+                  Know
+                </button>
+              </div>
+              <p className="study-hint">
+                Know sets the word to Mastered. Don&rsquo;t know sets it to
+                Learning.
+              </p>
+            </>
+          ) : (
+            <div className="study-summary">
+              <h3>No words to study</h3>
+              <p>Add a word first, then come back for flashcards.</p>
+              <button type="button" className="clear-button" onClick={endStudy}>
+                Back to bank
+              </button>
+            </div>
+          )}
+        </section>
+      ) : (
+        <>
+          <section className="add-card" aria-labelledby="add-heading">
+            <h2 id="add-heading" className="section-title">
+              Add a word
+            </h2>
 
         <form className="add-form" onSubmit={handleSubmit} noValidate>
           <div className="field field-word">
@@ -699,6 +941,8 @@ function App() {
             </>
           )}
         </div>
+      )}
+        </>
       )}
 
       <footer className="footer">
