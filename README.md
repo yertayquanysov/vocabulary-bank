@@ -1,7 +1,7 @@
 # Vocabulary Bank
 
 A small React app for collecting words you're learning. Sign in with your email
-and password, add a word, mark it as **New**, **Learning**, or **Mastered**, then
+and password, add a word, mark it as **Learning** or **Learned**, then
 filter, search, and study your collection with flashcards.
 
 Each word has one **explanation** field: English and Russian meanings plus a few
@@ -17,12 +17,12 @@ always edit the text by hand.
 - Generate or regenerate an explanation with Gemini: English + Russian meanings
   and example sentences
 - Edit the generated explanation directly on the add form
-- Choose a status when adding: New, Learning, or Mastered
+- Choose a status when adding: Learning or Learned
 - Change any word's status from its card
 - Flashcard study mode: reveal the explanation, then choose **Know** or
   **Don't know**
 - Filter by status and search words or explanations
-- Mastery progress indicator
+- Learning progress indicator
 - Duplicate-word guard and delete action
 - Responsive layout, keyboard-friendly controls
 - Supabase storage (with a local-only fallback)
@@ -59,10 +59,10 @@ word in the bank. Tap a card to reveal its explanation, then grade yourself:
 
 | Button | Status written to the database |
 | --- | --- |
-| **Know** | `mastered` |
+| **Know** | `learned` |
 | **Don't know** | `learning` |
 
-The status change is saved immediately, so the word cards and mastery progress
+The status change is saved immediately, so the word cards and learning progress
 reflect it as soon as you return to the bank.
 
 ## Storage

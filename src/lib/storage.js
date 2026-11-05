@@ -5,7 +5,7 @@ const TABLE = 'words'
 
 export const storageMode = isSupabaseConfigured ? 'supabase' : 'local'
 
-const VALID_STATUSES = ['new', 'learning', 'mastered']
+const VALID_STATUSES = ['learning', 'learned']
 
 function createId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -15,9 +15,9 @@ function createId() {
 }
 
 function normalizeStatus(status) {
-  if (status === 'mastered' || status === 'learned') return 'mastered'
-  if (status === 'learning') return 'learning'
-  return 'new'
+  if (status === 'mastered' || status === 'learned') return 'learned'
+  if (status === 'learning' || status === 'new') return 'learning'
+  return 'learning'
 }
 
 function legacyExplanation(entry) {

@@ -22,15 +22,13 @@ import {
 import './App.css'
 
 const STATUSES = [
-  { id: 'new', label: 'New' },
   { id: 'learning', label: 'Learning' },
-  { id: 'mastered', label: 'Mastered' },
+  { id: 'learned', label: 'Learned' },
 ]
 
 const STATUS_LABELS = {
-  new: 'New',
   learning: 'Learning',
-  mastered: 'Mastered',
+  learned: 'Learned',
 }
 
 const FILTERS = [{ id: 'all', label: 'All' }, ...STATUSES]
@@ -245,7 +243,7 @@ function App() {
   const [query, setQuery] = useState('')
   const [word, setWord] = useState('')
   const [explanation, setExplanation] = useState('')
-  const [status, setStatus] = useState('new')
+  const [status, setStatus] = useState('learning')
   const [error, setError] = useState('')
   const [apiKey, setApiKey] = useState(() => getGeminiApiKey())
   const [keyDraft, setKeyDraft] = useState(apiKey)
@@ -328,7 +326,7 @@ function App() {
   }, [authLoading, userId])
 
   const counts = useMemo(() => {
-    const totals = { all: words.length, new: 0, learning: 0, mastered: 0 }
+    const totals = { all: words.length, learning: 0, learned: 0 }
     for (const entry of words) {
       totals[entry.status] += 1
     }
@@ -336,7 +334,7 @@ function App() {
   }, [words])
 
   const percent = counts.all
-    ? Math.round((counts.mastered / counts.all) * 100)
+    ? Math.round((counts.learned / counts.all) * 100)
     : 0
 
   const visibleWords = useMemo(() => {
@@ -391,7 +389,7 @@ function App() {
       setWords((previous) => [entry, ...previous])
       setWord('')
       setExplanation('')
-      setStatus('new')
+      setStatus('learning')
       setError('')
     } catch (saveError) {
       setSyncError(saveError.message || 'Could not save your word.')
@@ -566,7 +564,7 @@ function App() {
     if (studySaving) return
 
     setStudySaving(true)
-    const saved = await changeStatus(id, knows ? 'mastered' : 'learning')
+    const saved = await changeStatus(id, knows ? 'learned' : 'learning')
 
     if (saved) {
       setStudyResults((previous) => ({
@@ -670,7 +668,7 @@ function App() {
 
         <div className="progress-card">
           <div className="progress-top">
-            <span className="progress-label">Mastery progress</span>
+            <span className="progress-label">Learning progress</span>
             <span className="progress-value">{percent}%</span>
           </div>
           <div
@@ -679,16 +677,16 @@ function App() {
             aria-valuemin="0"
             aria-valuemax="100"
             aria-valuenow={percent}
-            aria-label="Words mastered"
+            aria-label="Words learned"
           >
             <div className="progress-fill" style={{ width: `${percent}%` }} />
           </div>
           <p className="progress-meta">
             {counts.all === 0
               ? 'Add a word to start tracking progress.'
-              : `${counts.mastered} of ${counts.all} ${
+              : `${counts.learned} of ${counts.all} ${
                   counts.all === 1 ? 'word' : 'words'
-                } mastered`}
+                } learned`}
           </p>
           <button
             type="button"
@@ -1120,8 +1118,8 @@ function App() {
             <>
               <h2>Your bank is empty</h2>
               <p>
-                Add the first word above. Mark it as new, learning, or mastered
-                — you can switch anytime.
+                Add the first word above. Mark it as learning or learned — you
+                can switch anytime.
               </p>
             </>
           ) : (

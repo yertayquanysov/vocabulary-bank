@@ -482,15 +482,11 @@ h1 {
   border-radius: 50%;
 }
 
-.dot-new {
-  background: #5b7692;
-}
-
 .dot-learning {
   background: #d1902f;
 }
 
-.dot-mastered {
+.dot-learned {
   background: #2f7d58;
 }
 
@@ -706,17 +702,12 @@ h1 {
   height: 6px;
 }
 
-.badge-new {
-  background: #eaf0f6;
-  color: #4b647e;
-}
-
 .badge-learning {
   background: var(--amber-soft);
   color: var(--amber);
 }
 
-.badge-mastered {
+.badge-learned {
   background: var(--green-soft);
   color: var(--green);
 }
@@ -785,7 +776,7 @@ h1 {
   color: var(--amber);
 }
 
-.status-select-mastered {
+.status-select-learned {
   color: var(--green);
 }
 

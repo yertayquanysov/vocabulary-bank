@@ -1,6 +1,7 @@
 -- Vocabulary Bank schema
 -- Applied to the Supabase project as migrations "create_words_table",
--- "words_rls_and_owner", "words_shared_bank", and "words_explanation_column".
+-- "words_rls_and_owner", "words_shared_bank", "words_explanation_column", and
+-- "words_two_statuses".
 --
 -- Auth: email + password only. Accounts are created by the owner in the
 -- Supabase dashboard; the app never calls signUp. Signed-in users share one
@@ -14,8 +15,8 @@ create table words (
   id bigint generated always as identity primary key,
   word varchar(255) not null,
   explanation text not null default '',
-  status varchar(20) not null default 'new'
-    check (status in ('new', 'learning', 'mastered')),
+  status varchar(20) not null default 'learning'
+    check (status in ('learning', 'learned')),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
