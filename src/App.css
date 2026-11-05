@@ -239,6 +239,108 @@ h1 {
   box-shadow: 0 26px 50px -40px rgba(60, 50, 30, 0.55);
 }
 
+/* ---------- Gemini ---------- */
+
+.gemini-panel {
+  margin-top: 36px;
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #f6fbf7, var(--card));
+  box-shadow: 0 20px 44px -40px rgba(31, 92, 67, 0.7);
+}
+
+.gemini-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.gemini-title {
+  margin-bottom: 4px;
+  font-size: 17px;
+}
+
+.gemini-copy {
+  max-width: 56ch;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.gemini-form {
+  margin-top: 14px;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.gemini-field {
+  flex: 1;
+}
+
+.gemini-save {
+  flex-shrink: 0;
+}
+
+.gemini-remove {
+  flex-shrink: 0;
+  height: 46px;
+}
+
+.gemini-note {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--faint);
+}
+
+.gemini-note a {
+  color: var(--green);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 24px;
+}
+
+.generate-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid rgba(31, 92, 67, 0.28);
+  border-radius: 999px;
+  background: var(--green-soft);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+  white-space: nowrap;
+  transition: background 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
+}
+
+.generate-button:hover:not(:disabled) {
+  border-color: var(--green);
+  background: #dcefe2;
+}
+
+.generate-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.generate-button-card {
+  padding: 5px 10px;
+  font-size: 11.5px;
+}
+
 .section-title {
   margin-bottom: 16px;
   font-family: var(--font-display);
@@ -250,10 +352,10 @@ h1 {
 
 .add-form {
   display: grid;
-  grid-template-columns: minmax(140px, 0.9fr) minmax(180px, 1.3fr) auto auto;
+  grid-template-columns: minmax(160px, 1fr) auto auto;
   grid-template-areas:
-    'word meaning status submit'
-    'example example example example';
+    'word status submit'
+    'explanation explanation explanation';
   gap: 14px;
   align-items: end;
 }
@@ -262,12 +364,9 @@ h1 {
   grid-area: word;
 }
 
-.field-meaning {
-  grid-area: meaning;
-}
-
-.field-example {
-  grid-area: example;
+.field-explanation {
+  grid-area: explanation;
+  align-items: stretch;
 }
 
 .status-field {
@@ -622,39 +721,24 @@ h1 {
   color: var(--green);
 }
 
-.meaning {
+.card-explanation {
   flex: 1;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
-
-.meaning-empty {
-  font-style: italic;
-  color: var(--faint);
-}
-
-.example {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding-left: 10px;
-  border-left: 2px solid var(--line-strong);
-  font-size: 13px;
-  font-style: italic;
-  line-height: 1.45;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.explanation {
+  font-size: 13.5px;
+  line-height: 1.55;
   color: var(--muted);
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
 
-.example-label {
-  font-size: 9.5px;
-  font-style: normal;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+.explanation-empty {
+  font-style: italic;
   color: var(--faint);
 }
 
@@ -861,22 +945,13 @@ h1 {
   gap: 14px;
 }
 
-.flashcard-meaning {
-  font-size: 18px;
-  line-height: 1.5;
+.flashcard-explanation {
+  font-size: 16px;
+  line-height: 1.6;
   color: var(--ink);
+  text-align: left;
+  white-space: pre-line;
   overflow-wrap: anywhere;
-}
-
-.flashcard-back .example {
-  padding-left: 0;
-  border-left: 0;
-  font-size: 14px;
-  text-align: center;
-}
-
-.flashcard-back .example-label {
-  align-self: center;
 }
 
 .study-actions {
@@ -1149,9 +1224,9 @@ h1 {
   .add-form {
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
-      'word meaning'
-      'example example'
-      'status submit';
+      'word word'
+      'status submit'
+      'explanation explanation';
   }
 }
 
@@ -1165,14 +1240,35 @@ h1 {
     padding: 18px;
   }
 
+  .gemini-panel {
+    padding: 16px;
+  }
+
+  .gemini-head {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .gemini-form {
+    flex-wrap: wrap;
+  }
+
+  .gemini-field {
+    flex-basis: 100%;
+  }
+
+  .gemini-save,
+  .gemini-remove {
+    flex: 1;
+  }
+
   .add-form {
     grid-template-columns: 1fr;
     grid-template-areas:
       'word'
-      'meaning'
-      'example'
       'status'
-      'submit';
+      'submit'
+      'explanation';
   }
 
   .toolbar {

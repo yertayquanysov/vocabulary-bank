@@ -11,7 +11,14 @@ import {
   removeWord as deleteWord,
   setWordStatus,
   storageMode,
+  updateWordExplanation,
 } from './lib/storage'
+import {
+  clearGeminiApiKey,
+  generateWordExplanation,
+  getGeminiApiKey,
+  saveGeminiApiKey,
+} from './lib/gemini'
 import './App.css'
 
 const STATUSES = [
@@ -130,6 +137,25 @@ function IconCards() {
   )
 }
 
+function IconSparkles() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 3v4M12 17v4M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M17.7 6.3l1.4-1.4M4.9 19.1l1.4-1.4" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
 function Login({
   email,
   setEmail,
@@ -218,10 +244,14 @@ function App() {
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [word, setWord] = useState('')
-  const [meaning, setMeaning] = useState('')
-  const [example, setExample] = useState('')
+  const [explanation, setExplanation] = useState('')
   const [status, setStatus] = useState('new')
   const [error, setError] = useState('')
+  const [apiKey, setApiKey] = useState(() => getGeminiApiKey())
+  const [keyDraft, setKeyDraft] = useState(apiKey)
+  const [showKeyPanel, setShowKeyPanel] = useState(!apiKey)
+  const [generating, setGenerating] = useState(false)
+  const [generatingId, setGeneratingId] = useState(null)
   const [studyMode, setStudyMode] = useState(false)
   const [studyQueue, setStudyQueue] = useState([])
   const [studyIndex, setStudyIndex] = useState(0)
@@ -316,8 +346,7 @@ function App() {
       const matchesQuery =
         !needle ||
         entry.word.toLowerCase().includes(needle) ||
-        entry.meaning.toLowerCase().includes(needle) ||
-        entry.example.toLowerCase().includes(needle)
+        entry.explanation.toLowerCase().includes(needle)
       return matchesStatus && matchesQuery
     })
   }, [words, filter, query])
@@ -334,15 +363,10 @@ function App() {
   async function handleSubmit(event) {
     event.preventDefault()
     const trimmedWord = word.trim()
-    const trimmedMeaning = meaning.trim()
+    const trimmedExplanation = explanation.trim()
 
     if (!trimmedWord) {
       setError('Enter a word before adding it.')
-      return
-    }
-
-    if (!trimmedMeaning) {
-      setError('Add a meaning before saving.')
       return
     }
 
@@ -360,21 +384,112 @@ function App() {
     try {
       const entry = await createWord({
         word: trimmedWord,
-        meaning: trimmedMeaning,
-        example: example.trim(),
+        explanation: trimmedExplanation,
         status,
       })
 
       setWords((previous) => [entry, ...previous])
       setWord('')
-      setMeaning('')
-      setExample('')
+      setExplanation('')
       setStatus('new')
       setError('')
     } catch (saveError) {
       setSyncError(saveError.message || 'Could not save your word.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  function handleSaveKey(event) {
+    event.preventDefault()
+    const trimmedKey = keyDraft.trim()
+
+    if (!trimmedKey) {
+      setError('Paste your Gemini API key first.')
+      return
+    }
+
+    saveGeminiApiKey(trimmedKey)
+    setApiKey(trimmedKey)
+    setKeyDraft(trimmedKey)
+    setShowKeyPanel(false)
+    setError('')
+    setSyncError('')
+  }
+
+  function handleRemoveKey() {
+    clearGeminiApiKey()
+    setApiKey('')
+    setKeyDraft('')
+    setShowKeyPanel(true)
+  }
+
+  async function handleGenerateExplanation() {
+    const trimmedWord = word.trim()
+
+    if (!trimmedWord) {
+      setError('Enter a word before generating.')
+      return
+    }
+
+    if (!apiKey) {
+      setError('Add your Gemini API key first.')
+      setShowKeyPanel(true)
+      return
+    }
+
+    setGenerating(true)
+    setError('')
+    setSyncError('')
+
+    try {
+      const generated = await generateWordExplanation(trimmedWord, apiKey)
+      setExplanation(generated)
+    } catch (generateError) {
+      setError(generateError.message || 'Could not generate an explanation.')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function handleGenerateForWord(entry) {
+    if (!apiKey) {
+      setSyncError('Add your Gemini API key first.')
+      setShowKeyPanel(true)
+      return
+    }
+
+    if (generatingId !== null) return
+
+    setGeneratingId(entry.id)
+    setSyncError('')
+
+    try {
+      const generated = await generateWordExplanation(entry.word, apiKey)
+      const previous = entry.explanation
+
+      setWords((previousWords) =>
+        previousWords.map((item) =>
+          item.id === entry.id ? { ...item, explanation: generated } : item,
+        ),
+      )
+
+      try {
+        await updateWordExplanation(entry.id, generated)
+      } catch (saveError) {
+        setWords((previousWords) =>
+          previousWords.map((item) =>
+            item.id === entry.id ? { ...item, explanation: previous } : item,
+          ),
+        )
+        throw saveError
+      }
+    } catch (generateError) {
+      setSyncError(
+        generateError.message || 'Could not generate an explanation.',
+      )
+    } finally {
+      setGeneratingId(null)
     }
   }
 
@@ -681,7 +796,7 @@ function App() {
                 aria-label={
                   studyRevealed
                     ? undefined
-                    : `Reveal the meaning of ${studyEntry.word}`
+                    : `Reveal the explanation of ${studyEntry.word}`
                 }
               >
                 <span className={`badge badge-${studyEntry.status}`}>
@@ -693,17 +808,18 @@ function App() {
 
                 {studyRevealed ? (
                   <div className="flashcard-back">
-                    <p className="flashcard-meaning">{studyEntry.meaning}</p>
-                    {studyEntry.example && (
-                      <p className="example">
-                        <span className="example-label">Example</span>
-                        {studyEntry.example}
-                      </p>
-                    )}
+                    <p
+                      className={`flashcard-explanation ${
+                        studyEntry.explanation ? '' : 'explanation-empty'
+                      }`}
+                    >
+                      {studyEntry.explanation ||
+                        'No explanation yet. Add one from the word card.'}
+                    </p>
                   </div>
                 ) : (
                   <p className="flashcard-hint">
-                    Tap the card to reveal the meaning.
+                    Tap the card to reveal the explanation.
                   </p>
                 )}
               </div>
@@ -743,88 +859,154 @@ function App() {
         </section>
       ) : (
         <>
+          <section className="gemini-panel" aria-labelledby="gemini-heading">
+            <div className="gemini-head">
+              <div>
+                <h2 id="gemini-heading" className="section-title gemini-title">
+                  Gemini generation
+                </h2>
+                <p className="gemini-copy">
+                  {apiKey
+                    ? 'API key saved on this device. Generate English and Russian meanings with examples.'
+                    : 'Add your Gemini API key to generate English and Russian meanings with examples.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="clear-button"
+                onClick={() => setShowKeyPanel((open) => !open)}
+              >
+                {showKeyPanel
+                  ? 'Hide key form'
+                  : apiKey
+                    ? 'Update key'
+                    : 'Add API key'}
+              </button>
+            </div>
+
+            {showKeyPanel && (
+              <form className="gemini-form" onSubmit={handleSaveKey} noValidate>
+                <div className="field gemini-field">
+                  <label htmlFor="gemini-key-input">Gemini API key</label>
+                  <input
+                    id="gemini-key-input"
+                    type="password"
+                    value={keyDraft}
+                    onChange={(event) => setKeyDraft(event.target.value)}
+                    placeholder="AIza…"
+                    autoComplete="off"
+                    spellCheck="false"
+                  />
+                </div>
+                <button type="submit" className="add-button gemini-save">
+                  Save key
+                </button>
+                {apiKey && (
+                  <button
+                    type="button"
+                    className="clear-button gemini-remove"
+                    onClick={handleRemoveKey}
+                  >
+                    Remove
+                  </button>
+                )}
+              </form>
+            )}
+
+            <p className="gemini-note">
+              The key is stored only in this browser and sent directly to Google,
+              never to Supabase. Get one at{' '}
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Google AI Studio
+              </a>
+              .
+            </p>
+          </section>
+
           <section className="add-card" aria-labelledby="add-heading">
             <h2 id="add-heading" className="section-title">
               Add a word
             </h2>
 
-        <form className="add-form" onSubmit={handleSubmit} noValidate>
-          <div className="field field-word">
-            <label htmlFor="word-input">Word</label>
-            <input
-              id="word-input"
-              type="text"
-              value={word}
-              onChange={(event) => {
-                setWord(event.target.value)
-                if (error) setError('')
-              }}
-              placeholder="e.g. serendipity"
-              maxLength={60}
-              autoComplete="off"
-            />
-          </div>
+            <form className="add-form" onSubmit={handleSubmit} noValidate>
+              <div className="field field-word">
+                <label htmlFor="word-input">Word</label>
+                <input
+                  id="word-input"
+                  type="text"
+                  value={word}
+                  onChange={(event) => {
+                    setWord(event.target.value)
+                    if (error) setError('')
+                  }}
+                  placeholder="e.g. serendipity"
+                  maxLength={60}
+                  autoComplete="off"
+                />
+              </div>
 
-          <div className="field field-meaning">
-            <label htmlFor="meaning-input">Meaning</label>
-            <input
-              id="meaning-input"
-              type="text"
-              value={meaning}
-              onChange={(event) => setMeaning(event.target.value)}
-              placeholder="e.g. a happy accident"
-              maxLength={180}
-              autoComplete="off"
-              required
-            />
-          </div>
+              <div className="field field-explanation">
+                <div className="field-head">
+                  <label htmlFor="explanation-input">Explanation</label>
+                  <button
+                    type="button"
+                    className="generate-button"
+                    onClick={handleGenerateExplanation}
+                    disabled={generating || !word.trim()}
+                  >
+                    <IconSparkles />
+                    {generating ? 'Generating…' : 'Generate with Gemini'}
+                  </button>
+                </div>
+                <textarea
+                  id="explanation-input"
+                  value={explanation}
+                  onChange={(event) => {
+                    setExplanation(event.target.value)
+                    if (error) setError('')
+                  }}
+                  placeholder="English and Russian meanings with examples. Leave empty to generate later from the word card."
+                  rows={8}
+                  maxLength={4000}
+                />
+              </div>
 
-          <div className="field field-example">
-            <label htmlFor="example-input">
-              Example <span className="optional">optional</span>
-            </label>
-            <textarea
-              id="example-input"
-              value={example}
-              onChange={(event) => setExample(event.target.value)}
-              placeholder="e.g. We met by pure serendipity."
-              rows={2}
-              maxLength={300}
-            />
-          </div>
+              <fieldset className="field status-field">
+                <legend>Status</legend>
+                <div className="segmented">
+                  {STATUSES.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`segment ${
+                        status === option.id ? 'is-active' : ''
+                      }`}
+                      aria-pressed={status === option.id}
+                      onClick={() => setStatus(option.id)}
+                    >
+                      <span className={`dot dot-${option.id}`} />
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
 
-          <fieldset className="field status-field">
-            <legend>Status</legend>
-            <div className="segmented">
-              {STATUSES.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`segment ${
-                    status === option.id ? 'is-active' : ''
-                  }`}
-                  aria-pressed={status === option.id}
-                  onClick={() => setStatus(option.id)}
-                >
-                  <span className={`dot dot-${option.id}`} />
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
+              <button type="submit" className="add-button" disabled={saving}>
+                <IconPlus />
+                {saving ? 'Adding…' : 'Add word'}
+              </button>
+            </form>
 
-          <button type="submit" className="add-button" disabled={saving}>
-            <IconPlus />
-            {saving ? 'Adding…' : 'Add word'}
-          </button>
-        </form>
-
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-      </section>
+            {error && (
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+            )}
+          </section>
 
       <div className="toolbar">
         <div className="filters" role="group" aria-label="Filter words by status">
@@ -850,8 +1032,8 @@ function App() {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search words, meanings, or examples…"
-            aria-label="Search words, meanings, or examples"
+            placeholder="Search words or explanations…"
+            aria-label="Search words or explanations"
           />
         </div>
       </div>
@@ -874,18 +1056,29 @@ function App() {
                   </span>
                 </div>
 
-                <p
-                  className={`meaning ${entry.meaning ? '' : 'meaning-empty'}`}
-                >
-                  {entry.meaning || 'No meaning added yet.'}
-                </p>
-
-                {entry.example && (
-                  <p className="example">
-                    <span className="example-label">Example</span>
-                    {entry.example}
+                <div className="card-explanation">
+                  <p
+                    className={`explanation ${
+                      entry.explanation ? '' : 'explanation-empty'
+                    }`}
+                  >
+                    {entry.explanation || 'No explanation yet.'}
                   </p>
-                )}
+
+                  <button
+                    type="button"
+                    className="generate-button generate-button-card"
+                    onClick={() => handleGenerateForWord(entry)}
+                    disabled={generatingId !== null}
+                  >
+                    <IconSparkles />
+                    {generatingId === entry.id
+                      ? 'Generating…'
+                      : entry.explanation
+                        ? 'Regenerate'
+                        : 'Generate'}
+                  </button>
+                </div>
 
                 <div className="card-foot">
                   <select

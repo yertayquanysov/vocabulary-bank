@@ -20,12 +20,27 @@ function normalizeStatus(status) {
   return 'new'
 }
 
+function legacyExplanation(entry) {
+  const parts = []
+  if (typeof entry.meaning === 'string' && entry.meaning.trim()) {
+    parts.push(`Meaning: ${entry.meaning.trim()}`)
+  }
+  if (typeof entry.example === 'string' && entry.example.trim()) {
+    parts.push(`Example: ${entry.example.trim()}`)
+  }
+  return parts.join('\n\n')
+}
+
+function normalizeExplanation(entry) {
+  if (typeof entry.explanation === 'string') return entry.explanation
+  return legacyExplanation(entry)
+}
+
 function normalizeEntry(entry) {
   return {
     id: entry.id,
     word: entry.word,
-    meaning: typeof entry.meaning === 'string' ? entry.meaning : '',
-    example: typeof entry.example === 'string' ? entry.example : '',
+    explanation: normalizeExplanation(entry),
     status: normalizeStatus(entry.status),
     createdAt: entry.createdAt ?? Date.now(),
   }
@@ -35,8 +50,7 @@ function normalizeRow(row) {
   return {
     id: row.id,
     word: row.word,
-    meaning: row.meaning ?? '',
-    example: row.example ?? '',
+    explanation: typeof row.explanation === 'string' ? row.explanation : '',
     status: normalizeStatus(row.status),
     createdAt: row.created_at ? Date.parse(row.created_at) : Date.now(),
   }
@@ -74,20 +88,22 @@ export async function listWords() {
 
   const { data, error } = await supabase
     .from(TABLE)
-    .select('id, word, meaning, example, status, created_at')
+    .select('id, word, explanation, status, created_at')
     .order('created_at', { ascending: false })
 
   if (error) throw error
   return (data ?? []).map(normalizeRow)
 }
 
-export async function createWord({ word, meaning, example, status }) {
+export async function createWord({ word, explanation, status }) {
+  const nextExplanation =
+    typeof explanation === 'string' ? explanation.trim() : ''
+
   if (!supabase) {
     const entry = {
       id: createId(),
       word,
-      meaning,
-      example,
+      explanation: nextExplanation,
       status: normalizeStatus(status),
       createdAt: Date.now(),
     }
@@ -99,15 +115,38 @@ export async function createWord({ word, meaning, example, status }) {
     .from(TABLE)
     .insert({
       word,
-      meaning,
-      example: example || null,
+      explanation: nextExplanation,
       status: normalizeStatus(status),
     })
-    .select('id, word, meaning, example, status, created_at')
+    .select('id, word, explanation, status, created_at')
     .single()
 
   if (error) throw error
   return normalizeRow(data)
+}
+
+export async function updateWordExplanation(id, explanation) {
+  const nextExplanation =
+    typeof explanation === 'string' ? explanation.trim() : ''
+
+  if (!supabase) {
+    writeLocalWords(
+      readLocalWords().map((entry) =>
+        entry.id === id ? { ...entry, explanation: nextExplanation } : entry,
+      ),
+    )
+    return
+  }
+
+  const { error } = await supabase
+    .from(TABLE)
+    .update({
+      explanation: nextExplanation,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+
+  if (error) throw error
 }
 
 export async function setWordStatus(id, status) {

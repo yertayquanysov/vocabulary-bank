@@ -1,30 +1,61 @@
 # Vocabulary Bank
 
 A small React app for collecting words you're learning. Sign in with your email
-and password, add a word with a meaning and an optional example sentence, mark
-it as **New**, **Learning**, or **Mastered**, then filter, search, and study your
-collection with flashcards.
+and password, add a word, mark it as **New**, **Learning**, or **Mastered**, then
+filter, search, and study your collection with flashcards.
+
+Each word has one **explanation** field: English and Russian meanings plus a few
+example sentences in both languages. Gemini can generate it for you, and you can
+always edit the text by hand.
 
 ## Features
 
 - Email + password sign-in — no sign-up form
 - One shared bank: every signed-in account sees and edits the same words
 - Anonymous visitors cannot read or write anything (enforced by RLS)
-- Add a word with a required meaning and optional example sentence
+- Add a word with an optional explanation
+- Generate or regenerate an explanation with Gemini: English + Russian meanings
+  and example sentences
+- Edit the generated explanation directly on the add form
 - Choose a status when adding: New, Learning, or Mastered
 - Change any word's status from its card
-- Flashcard study mode: reveal the meaning, then choose **Know** or
+- Flashcard study mode: reveal the explanation, then choose **Know** or
   **Don't know**
-- Filter by status and search words, meanings, or examples
+- Filter by status and search words or explanations
 - Mastery progress indicator
 - Duplicate-word guard and delete action
 - Responsive layout, keyboard-friendly controls
 - Supabase storage (with a local-only fallback)
 
+## Gemini explanations
+
+1. Get an API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+2. Open the app and paste the key into **Gemini generation → Add API key**.
+3. Type a word and press **Generate with Gemini**, or use **Generate** on any
+   word card to fill in a missing explanation.
+
+The key is stored in this browser's `localStorage` under
+`vocabulary-bank.gemini-key` and is sent directly to Google. It is never written
+to Supabase. Generated text looks like this and stays fully editable:
+
+```text
+English
+Meaning: …
+Examples:
+- …
+- …
+
+Russian
+Meaning: …
+Examples:
+- …
+- …
+```
+
 ## Study mode
 
 Open **Study flashcards** from the progress card. Each session shuffles every
-word in the bank. Tap a card to reveal its meaning, then grade yourself:
+word in the bank. Tap a card to reveal its explanation, then grade yourself:
 
 | Button | Status written to the database |
 | --- | --- |
@@ -84,7 +115,8 @@ required in Supabase.
 ## Supabase setup
 
 The schema lives in [`supabase/schema.sql`](supabase/schema.sql). It defines the
-`words` table, RLS policies, and an `updated_at` trigger.
+`words` table with one merged `explanation` column, RLS policies, and an
+`updated_at` trigger.
 
 1. Run the SQL in the Supabase SQL editor (or apply it as a migration).
 2. Copy the example env file and fill in your project values from **Project
